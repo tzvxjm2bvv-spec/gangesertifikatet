@@ -1,9 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  Suspense,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useSearchParams } from "next/navigation";
 
+/* =========================
+   Typer
+========================= */
 type Task = { a: number; b: number };
 
 type Result = {
@@ -12,6 +20,9 @@ type Result = {
   correct: boolean;
 };
 
+/* =========================
+   Utils
+========================= */
 function shuffle<T>(arr: T[]) {
   return [...arr].sort(() => Math.random() - 0.5);
 }
@@ -28,23 +39,28 @@ function parseTables(param: string | null): number[] {
     .filter((n) => n >= 2 && n <= 9);
 }
 
-export default function OvePage() {
+/* =========================
+   Inner page (må ligge i Suspense)
+========================= */
+function OveInner() {
   const searchParams = useSearchParams();
-  const selectedTables = useMemo(
+
+  const recommended = useMemo(
     () => parseTables(searchParams.get("tables")),
     [searchParams]
   );
 
-  // fallback hvis ingen anbefalinger
-  const tables = selectedTables.length
-    ? selectedTables
-    : [2, 3, 4, 5, 6, 7, 8, 9];
+  const tables =
+    recommended.length > 0
+      ? recommended
+      : [2, 3, 4, 5, 6, 7, 8, 9];
 
-  // generer oppgaver
   const tasks = useMemo(() => {
     const t: Task[] = [];
     for (const a of tables) {
-      for (let b = 2; b <= 9; b++) t.push({ a, b });
+      for (let b = 2; b <= 9; b++) {
+        t.push({ a, b });
+      }
     }
     return shuffle(t);
   }, [tables]);
@@ -54,8 +70,10 @@ export default function OvePage() {
   const [results, setResults] = useState<Result[]>([]);
   const [done, setDone] = useState(false);
 
-  const startedAtRef = useRef<number>(
-    typeof performance !== "undefined" ? performance.now() : Date.now()
+  const startedAt = useRef(
+    typeof performance !== "undefined"
+      ? performance.now()
+      : Date.now()
   );
 
   const task = tasks[index];
@@ -64,17 +82,21 @@ export default function OvePage() {
     if (!task || done) return;
 
     const now =
-      typeof performance !== "undefined" ? performance.now() : Date.now();
-    const ms = Math.max(0, now - startedAtRef.current);
+      typeof performance !== "undefined"
+        ? performance.now()
+        : Date.now();
 
+    const ms = Math.max(0, now - startedAt.current);
     const user = Number(answer.trim());
     const correct = user === task.a * task.b;
 
     setResults((r) => [...r, { task, ms, correct }]);
 
     setAnswer("");
-    startedAtRef.current =
-      typeof performance !== "undefined" ? performance.now() : Date.now();
+    startedAt.current =
+      typeof performance !== "undefined"
+        ? performance.now()
+        : Date.now();
 
     if (index + 1 >= tasks.length) {
       setDone(true);
@@ -84,10 +106,11 @@ export default function OvePage() {
     setIndex((i) => i + 1);
   }
 
-  // ---------- FERDIG ----------
+  /* =========================
+     FERDIG
+  ========================= */
   if (done) {
     const totalMs = results.reduce((a, r) => a + r.ms, 0);
-
     const slowest = [...results]
       .sort((a, b) => b.ms - a.ms)
       .slice(0, 5);
@@ -155,7 +178,9 @@ export default function OvePage() {
     );
   }
 
-  // ---------- PÅGÅENDE ----------
+  /* =========================
+     PÅGÅENDE
+  ========================= */
   if (!task) return null;
 
   return (
@@ -211,5 +236,16 @@ export default function OvePage() {
         Ingen tidsgrense – dette er bare øving 💙
       </p>
     </main>
+  );
+}
+
+/* =========================
+   Page export (med Suspense)
+========================= */
+export default function OvePage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 18 }}>Laster øving…</div>}>
+      <OveInner />
+    </Suspense>
   );
 }
