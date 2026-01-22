@@ -18,9 +18,10 @@ export default function KartleggingPage() {
   // Lag alle oppgaver 0–10, bland rekkefølgen
   const tasks = useMemo(() => {
     const t: Task[] = [];
-    for (let a = 0; a <= 10; a++) {
-  for (let b = 0; b <= 10; b++) t.push({ a, b });
+    for (let a = 2; a <= 9; a++) {
+  for (let b = 2; b <= 9; b++) t.push({ a, b });
 }
+
     return t.sort(() => Math.random() - 0.5);
   }, []);
 
