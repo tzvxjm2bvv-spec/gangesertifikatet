@@ -19,8 +19,8 @@ export default function KartleggingPage() {
   const tasks = useMemo(() => {
     const t: Task[] = [];
     for (let a = 0; a <= 10; a++) {
-      for (let b = 0; b <= 10; b++) t.push({ a, b });
-    }
+  for (let b = 0; b <= 10; b++) t.push({ a, b });
+}
     return t.sort(() => Math.random() - 0.5);
   }, []);
 
