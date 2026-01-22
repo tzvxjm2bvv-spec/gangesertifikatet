@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import React, { useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type Task = { a: number; b: number };
 
@@ -46,7 +47,10 @@ function taskKey(t: { a: number; b: number }) {
 }
 
 function analyze(results: TaskResult[]) {
-  const allTimes = results.map((r) => r.ms).filter((x) => Number.isFinite(x) && x > 0);
+  const allTimes = results
+    .map((r) => r.ms)
+    .filter((x) => Number.isFinite(x) && x > 0);
+
   const globalMedian = median(allTimes) || 1;
 
   // --- Per tabell (a-gangen)
@@ -69,7 +73,7 @@ function analyze(results: TaskResult[]) {
 
     // Score: kombiner treghet og feil
     // - treghet relativt til barnets egen median (med/globalMedian)
-    // - feil: (1-accuracy) vektes litt mer enn tid
+    // - feil vektes litt mer enn tid
     const timeRel = med / globalMedian; // >1 betyr tregere enn egen median
     const error = 1 - acc;
 
@@ -93,7 +97,6 @@ function analyze(results: TaskResult[]) {
     .map((s) => s.table);
 
   // --- Tregeste enkeltoppgaver relativt til egen median
-  // Vi bruker ratio = ms / globalMedian, og viser topp 8.
   const slowTasks = [...results]
     .map((r) => ({
       key: taskKey(r.task),
@@ -114,7 +117,9 @@ function analyze(results: TaskResult[]) {
     .map((s) => s.table);
 
   // --- Tregeste tabeller (median)
-  const slowestByTime = [...tableStats].sort((a, b) => b.medianMs - a.medianMs).map((s) => s.table);
+  const slowestByTime = [...tableStats]
+    .sort((a, b) => b.medianMs - a.medianMs)
+    .map((s) => s.table);
 
   return {
     globalMedian,
@@ -127,6 +132,8 @@ function analyze(results: TaskResult[]) {
 }
 
 export default function KartleggingPage() {
+  const router = useRouter();
+
   // 2–9-gangen, alle kombinasjoner = 8×8=64
   const tasks = useMemo(() => {
     const t: Task[] = [];
@@ -140,10 +147,14 @@ export default function KartleggingPage() {
   const [answer, setAnswer] = useState("");
   const [results, setResults] = useState<TaskResult[]>([]);
   const [done, setDone] = useState(false);
-  const [analysis, setAnalysis] = useState<ReturnType<typeof analyze> | null>(null);
+  const [analysis, setAnalysis] = useState<ReturnType<typeof analyze> | null>(
+    null
+  );
 
   // Måler tid per oppgave
-  const startedAtRef = useRef<number>(typeof performance !== "undefined" ? performance.now() : Date.now());
+  const startedAtRef = useRef<number>(
+    typeof performance !== "undefined" ? performance.now() : Date.now()
+  );
 
   const task = tasks[index];
 
@@ -171,9 +182,9 @@ export default function KartleggingPage() {
     ];
 
     // Restart klokke for neste oppgave
-    startedAtRef.current = typeof performance !== "undefined" ? performance.now() : Date.now();
+    startedAtRef.current =
+      typeof performance !== "undefined" ? performance.now() : Date.now();
 
-    // Neste
     setAnswer("");
 
     const nextIndex = index + 1;
@@ -202,7 +213,8 @@ export default function KartleggingPage() {
 
         <h1 style={{ marginTop: 12 }}>Kartlegging ferdig</h1>
         <p style={{ opacity: 0.75 }}>
-          2–9-gangen · {results.length} oppgaver · median svartid: <strong>{fmtMs(analysis.globalMedian)}</strong>
+          2–9-gangen · {results.length} oppgaver · median svartid:{" "}
+          <strong>{fmtMs(analysis.globalMedian)}</strong>
         </p>
 
         <div
@@ -218,14 +230,34 @@ export default function KartleggingPage() {
           <h2 style={{ margin: 0, fontSize: 18 }}>Anbefalt øving</h2>
           <p style={{ margin: "8px 0 0 0", opacity: 0.9 }}>
             Øv mest på:{" "}
-            <strong>
-              {top2.map((t) => `${t}-gangen`).join(" og ")}
-            </strong>
+            <strong>{top2.map((t) => `${t}-gangen`).join(" og ")}</strong>
             {top3.length > 2 ? ` (deretter ${top3[2]}-gangen)` : ""}.
           </p>
           <p style={{ margin: "8px 0 0 0", opacity: 0.8, fontSize: 13 }}>
             (Dette baseres på både feil og treghet – også når svaret er riktig.)
           </p>
+
+          {/* NYTT: Gå rett til øving med anbefalte tabeller */}
+          <button
+            onClick={() => {
+              const tables = analysis.recommendedTables.slice(0, 3).join(",");
+              router.push(`/ove?tables=${tables}`);
+            }}
+            style={{
+              marginTop: 12,
+              width: "100%",
+              padding: "12px 14px",
+              borderRadius: 12,
+              border: "none",
+              background: "#111",
+              color: "white",
+              fontSize: 16,
+              fontWeight: 900,
+              cursor: "pointer",
+            }}
+          >
+            Øv på anbefalte tabeller
+          </button>
         </div>
 
         <div style={{ marginTop: 18, display: "grid", gap: 14 }}>
@@ -240,7 +272,13 @@ export default function KartleggingPage() {
           >
             <h3 style={{ marginTop: 0 }}>Tabeller (rangert)</h3>
             <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: 14,
+                }}
+              >
                 <thead>
                   <tr style={{ textAlign: "left", opacity: 0.8 }}>
                     <th style={{ padding: "8px 6px" }}>Tabell</th>
@@ -252,11 +290,20 @@ export default function KartleggingPage() {
                 </thead>
                 <tbody>
                   {analysis.tableStats.map((s) => (
-                    <tr key={s.table} style={{ borderTop: "1px solid rgba(255,255,255,0.10)" }}>
-                      <td style={{ padding: "8px 6px", fontWeight: 800 }}>{s.table}-gangen</td>
-                      <td style={{ padding: "8px 6px" }}>{s.correctN}/{s.n}</td>
+                    <tr
+                      key={s.table}
+                      style={{ borderTop: "1px solid rgba(255,255,255,0.10)" }}
+                    >
+                      <td style={{ padding: "8px 6px", fontWeight: 800 }}>
+                        {s.table}-gangen
+                      </td>
+                      <td style={{ padding: "8px 6px" }}>
+                        {s.correctN}/{s.n}
+                      </td>
                       <td style={{ padding: "8px 6px" }}>{s.wrongN}</td>
-                      <td style={{ padding: "8px 6px" }}>{fmtMs(s.medianMs)}</td>
+                      <td style={{ padding: "8px 6px" }}>
+                        {fmtMs(s.medianMs)}
+                      </td>
                       <td style={{ padding: "8px 6px" }}>{fmtMs(s.meanMs)}</td>
                     </tr>
                   ))}
@@ -265,9 +312,21 @@ export default function KartleggingPage() {
             </div>
 
             <p style={{ marginTop: 10, opacity: 0.75, fontSize: 13 }}>
-              Tregeste (median): <strong>{analysis.slowestByTime.slice(0, 3).map((t) => `${t}-gangen`).join(", ")}</strong>
+              Tregeste (median):{" "}
+              <strong>
+                {analysis.slowestByTime
+                  .slice(0, 3)
+                  .map((t) => `${t}-gangen`)
+                  .join(", ")}
+              </strong>
               <br />
-              Mest feil: <strong>{analysis.weakestByErrors.slice(0, 3).map((t) => `${t}-gangen`).join(", ")}</strong>
+              Mest feil:{" "}
+              <strong>
+                {analysis.weakestByErrors
+                  .slice(0, 3)
+                  .map((t) => `${t}-gangen`)
+                  .join(", ")}
+              </strong>
             </p>
           </section>
 
@@ -282,7 +341,8 @@ export default function KartleggingPage() {
           >
             <h3 style={{ marginTop: 0 }}>Tregeste enkeltoppgaver (relativt)</h3>
             <p style={{ marginTop: -6, opacity: 0.75, fontSize: 13 }}>
-              Dette er oppgaver som tok uforholdsmessig lang tid sammenlignet med barnets egen median ({fmtMs(analysis.globalMedian)}).
+              Dette er oppgaver som tok uforholdsmessig lang tid sammenlignet med
+              barnets egen median ({fmtMs(analysis.globalMedian)}).
             </p>
 
             <div style={{ display: "grid", gap: 8 }}>
@@ -302,17 +362,23 @@ export default function KartleggingPage() {
                   <div>
                     <div style={{ fontWeight: 900 }}>
                       {t.a} × {t.b}
-                      <span style={{ opacity: 0.7, fontWeight: 600 }}> ({t.correct ? "riktig" : "feil"})</span>
+                      <span style={{ opacity: 0.7, fontWeight: 600 }}>
+                        {" "}
+                        ({t.correct ? "riktig" : "feil"})
+                      </span>
                     </div>
                     {!t.correct && (
                       <div style={{ opacity: 0.85, fontSize: 13 }}>
-                        Ditt svar: <strong>{t.userAnswer ?? "—"}</strong> · Riktig: <strong>{t.correctAnswer}</strong>
+                        Ditt svar: <strong>{t.userAnswer ?? "—"}</strong> ·
+                        Riktig: <strong>{t.correctAnswer}</strong>
                       </div>
                     )}
                   </div>
                   <div style={{ textAlign: "right", minWidth: 120 }}>
                     <div style={{ fontWeight: 900 }}>{fmtMs(t.ms)}</div>
-                    <div style={{ opacity: 0.75, fontSize: 13 }}>{t.ratio.toFixed(1)}× median</div>
+                    <div style={{ opacity: 0.75, fontSize: 13 }}>
+                      {t.ratio.toFixed(1)}× median
+                    </div>
                   </div>
                 </div>
               ))}
@@ -320,7 +386,8 @@ export default function KartleggingPage() {
           </section>
 
           <section style={{ opacity: 0.75, fontSize: 13 }}>
-            Neste steg: vi kan bruke disse anbefalingene til å forhåndsvelge tabeller på <strong>Øve</strong>-siden.
+            Neste steg: vi bruker disse anbefalingene til å forhåndsvelge tabeller
+            på <strong>Øve</strong>-siden (knappen over).
           </section>
         </div>
       </main>
@@ -329,7 +396,6 @@ export default function KartleggingPage() {
 
   // UI: pågående
   if (!task) {
-    // Skal normalt ikke skje (men safe)
     return (
       <main style={{ padding: 18 }}>
         <Link href="/" style={{ textDecoration: "none" }}>
@@ -348,7 +414,9 @@ export default function KartleggingPage() {
       </Link>
 
       <h1 style={{ marginTop: 12 }}>Kartlegging</h1>
-      <p style={{ opacity: 0.75 }}>Oppgave {index + 1} av {tasks.length} (2–9)</p>
+      <p style={{ opacity: 0.75 }}>
+        Oppgave {index + 1} av {tasks.length} (2–9)
+      </p>
 
       <div style={{ fontSize: 38, fontWeight: 900, margin: "18px 0" }}>
         {task.a} × {task.b}
